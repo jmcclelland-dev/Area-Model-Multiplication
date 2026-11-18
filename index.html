@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Area model practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F6FA; --surface:#FFFFFF; --ink:#17212E; --muted:#5B6B7E; --line:#B8C4D2;
+  --box-bg:#F8FAFD; --hund:#7B3FB8; --tens:#1F64C8; --ones:#0B7C7E;
+  --right:#2E7D32; --right-bg:#E2F3E3; --wrong:#C2352B; --wrong-bg:#FCE9E7;
+  --cell:clamp(2.6rem, 11vw, 3.4rem);
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top, 0px);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121821; --surface:#1B2330; --ink:#E8EEF5; --muted:#9AA9BA; --line:#3A4757;
+    --box-bg:#161D28; --hund:#C49BEF; --tens:#7FB2FF; --ones:#4FD1C5;
+    --right:#7BD88A; --right-bg:#1E3A24; --wrong:#FF8A80; --wrong-bg:#3E2020;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121821; --surface:#1B2330; --ink:#E8EEF5; --muted:#9AA9BA; --line:#3A4757;
+  --box-bg:#161D28; --hund:#C49BEF; --tens:#7FB2FF; --ones:#4FD1C5;
+  --right:#7BD88A; --right-bg:#1E3A24; --wrong:#FF8A80; --wrong-bg:#3E2020;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top, 0px); min-height:100%; background:var(--bg)}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none !important}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Atkinson Hyperlegible", "Verdana", "Segoe UI", system-ui, sans-serif;
+  font-size:1.125rem; line-height:1.5;
+}
+.bar{
+  display:flex; flex-wrap:wrap; gap:.75rem 1.25rem; align-items:center; justify-content:space-between;
+  padding:1rem clamp(1rem,4vw,2rem); background:var(--surface); border-bottom:2px solid var(--line);
+}
+.choices{display:flex; flex-wrap:wrap; gap:.75rem}
+.seg{display:inline-flex; flex-wrap:wrap; border:2px solid var(--line); border-radius:12px; overflow:hidden}
+.seg button{
+  font:inherit; font-size:1rem; padding:.55rem .9rem; min-height:44px; border:0;
+  background:transparent; color:var(--ink); cursor:pointer;
+}
+.seg button + button{border-left:2px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--surface); font-weight:700}
+button:focus-visible, input:focus-visible{outline:3px solid var(--tens); outline-offset:2px}
+.tally{font-size:1rem; color:var(--muted)}
+.tally b{color:var(--ink); font-size:1.25rem}
+
+main{max-width:760px; margin:0 auto; padding:clamp(1rem,4vw,2rem)}
+.problem{
+  font-size:clamp(2.75rem, 11vw, 4.75rem); font-weight:700; line-height:1.15;
+  margin:.25rem 0; text-align:center; font-variant-numeric:tabular-nums;
+}
+.problem .eq{color:var(--right)}
+.direction{text-align:center; color:var(--muted); margin:0 auto 1.5rem; max-width:42ch; font-size:1.2rem}
+.hund{color:var(--hund)} .tens{color:var(--tens)} .ones{color:var(--ones)} .thou{color:var(--muted)}
+
+.scroll{overflow-x:auto; padding:.25rem 0 .5rem}
+.model{display:grid; width:max-content; margin:0 auto}
+.corner{display:flex; align-items:flex-end; justify-content:flex-end; font-size:1.6rem; color:var(--muted); padding:.3rem .9rem}
+.out{display:flex; align-items:center; justify-content:center; font-size:1.9rem; font-weight:700; padding:.3rem .5rem}
+.out.side{justify-content:flex-end; padding-right:.9rem}
+.box{
+  position:relative; display:flex; align-items:center; justify-content:center; padding:.5rem;
+  background:var(--box-bg); border-style:solid; border-color:var(--ink); border-width:0 3px 3px 0;
+}
+.box.first-col{border-left-width:3px}
+.box.first-row{border-top-width:3px}
+.box .given{font-size:1.8rem; font-weight:700}
+.box.right{background:var(--right-bg)}
+.box.right::after{content:"✓"; position:absolute; top:.15rem; right:.45rem; color:var(--right); font-weight:700}
+
+.num{
+  font:inherit; font-weight:700; font-size:1.75rem; width:100%; max-width:6.5ch; min-width:3.2ch;
+  text-align:center; padding:.3rem .2rem; border:2px solid var(--line); border-radius:10px;
+  background:var(--surface); color:var(--ink);
+}
+.out .num{max-width:4.5ch}
+.num.right{border-color:transparent; background:transparent; color:var(--right)}
+.out .num.right{color:inherit}
+.num.wrong, .ans.wrong{border:3px dashed var(--wrong); background:var(--wrong-bg); animation:nudge .3s ease}
+@keyframes nudge{25%{transform:translateX(-4px)} 75%{transform:translateX(4px)}}
+
+.sum{
+  display:grid; align-items:center; gap:4px; width:max-content; margin:1.75rem auto 0;
+  padding:1rem 1.25rem; background:var(--surface); border:2px solid var(--line); border-radius:16px;
+  font-size:1.9rem; font-weight:700; font-variant-numeric:tabular-nums;
+}
+.sum .ph{font-size:1rem; text-align:center}
+.sum .dg{text-align:center}
+.sum .sign{text-align:center}
+.sum .src{font-size:1rem; font-weight:400; color:var(--muted); padding-left:1rem; white-space:nowrap}
+.sum .rule{border-top:4px solid var(--ink); margin:.15rem 0}
+.carry{
+  width:var(--cell); height:2rem; padding:0; font:inherit; font-size:1.1rem; text-align:center;
+  border:1.5px dashed var(--line); border-radius:6px; background:transparent; color:var(--muted);
+}
+.ans{
+  width:var(--cell); height:calc(var(--cell) * 1.2); padding:0; font:inherit; font-size:1.9rem; text-align:center;
+  border:2px solid var(--line); border-radius:10px; background:var(--box-bg); color:var(--ink);
+}
+.ans.right{border-color:var(--right); background:var(--right-bg); color:var(--right)}
+
+.status{min-height:2.2rem; text-align:center; font-size:1.3rem; font-weight:700; margin:1.25rem 0 .75rem}
+.status.wrong{color:var(--wrong)}
+.status.right{color:var(--right)}
+.next{
+  display:block; margin:0 auto 2rem; font:inherit; font-size:1.3rem; font-weight:700;
+  padding:.8rem 1.8rem; min-height:52px; border:0; border-radius:14px;
+  background:var(--right); color:var(--surface); cursor:pointer;
+}
+@media (prefers-reduced-motion: reduce){ *{animation:none !important} }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="choices">
+    <div class="seg" id="sizeSeg" role="group" aria-label="Problem size">
+      <button data-size="1x2" aria-pressed="true">1-digit × 2-digit</button>
+      <button data-size="1x3" aria-pressed="false">1-digit × 3-digit</button>
+      <button data-size="2x2" aria-pressed="false">2-digit × 2-digit</button>
+    </div>
+    <div class="seg" id="modeSeg" role="group" aria-label="Practice type">
+      <button data-mode="fill" aria-pressed="true">Fill the boxes</button>
+      <button data-mode="find" aria-pressed="false">Challenge: find the outside</button>
+    </div>
+  </div>
+  <div class="tally">Problems finished: <b id="count">0</b></div>
+</header>
+
+<main>
+  <h1 class="problem" id="problem"></h1>
+  <p class="direction" id="direction"></p>
+  <div class="scroll"><div class="model" id="model"></div></div>
+  <div class="scroll" id="sumWrap" hidden><div class="sum" id="sum"></div></div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <button class="next" id="next" hidden>Next problem</button>
+</main>
+
+<script>
+const PLACE = {1:'ones', 10:'tens', 100:'hund', 1000:'thou'};
+const NAMES = ['ones','tens','hundreds','thousands'];
+const placeOf = n => n >= 1000 ? 1000 : n >= 100 ? 100 : n >= 10 ? 10 : 1;
+const rd = () => 1 + Math.floor(Math.random() * 9);   // 1–9, no zeros
+const r29 = () => 2 + Math.floor(Math.random() * 8);  // 2–9
+let size = '1x2', mode = 'fill', count = 0, P = null, lastKey = '', pending = [];
+
+function el(cls, text, tag){
+  const e = document.createElement(tag || 'div');
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function expand(n){
+  const s = String(n);
+  return [...s].map((c,i) => Number(c) * 10 ** (s.length - 1 - i)).filter(v => v > 0);
+}
+function spans(n){
+  const s = String(n);
+  return [...s].map((c,i) => `<span class="${PLACE[10 ** (s.length - 1 - i)]}">${c}</span>`).join('');
+}
+function setStatus(msg, kind){
+  const s = document.getElementById('status');
+  s.textContent = msg;
+  s.className = 'status' + (kind ? ' ' + kind : '');
+}
+
+function newProblem(){
+  let a, b, key;
+  do {
+    if (size === '1x2'){ a = rd()*10 + rd(); b = r29(); }
+    else if (size === '1x3'){ a = rd()*100 + rd()*10 + rd(); b = r29(); }
+    else { a = rd()*10 + rd(); b = rd()*10 + rd(); }
+    key = a + 'x' + b;
+  } while (key === lastKey);
+  lastKey = key;
+  const tops = expand(a), sides = expand(b);
+  const hidTop = new Set(), hidSide = new Set();
+  if (mode === 'find'){
+    if (sides.length === 1){
+      if (Math.random() < .5) hidSide.add(0);
+      else hidTop.add(Math.floor(Math.random() * tops.length));
+    } else {
+      hidTop.add(Math.floor(Math.random() * tops.length));
+      hidSide.add(Math.floor(Math.random() * sides.length));
+    }
+  }
+  P = {a, b, tops, sides, hidTop, hidSide, phase: mode === 'find' ? 'outside' : 'inside'};
+  render();
+}
+
+function heading(){
+  const h = document.getElementById('problem');
+  if (P.phase === 'outside'){
+    h.innerHTML = `${P.hidTop.size ? '?' : spans(P.a)} × ${P.hidSide.size ? '?' : spans(P.b)}`;
+  } else if (P.phase === 'done'){
+    h.innerHTML = `${spans(P.a)} × ${spans(P.b)} <span class="eq">= ${P.a * P.b}</span>`;
+  } else {
+    h.innerHTML = `${spans(P.a)} × ${spans(P.b)}`;
+  }
+  document.getElementById('direction').textContent = {
+    inside: 'Multiply the outside numbers to fill each box.',
+    outside: 'Find the missing outside number. What times the other outside number makes the number in the box?',
+    sum: 'Add the numbers from the boxes. Start with the ones column on the right.',
+    done: 'Nice work.'
+  }[P.phase];
+}
+
+function numInput(correct, label){
+  const inp = document.createElement('input');
+  inp.className = 'num'; inp.type = 'text'; inp.inputMode = 'numeric'; inp.autocomplete = 'off';
+  inp.setAttribute('aria-label', label);
+  const len = String(correct).length;
+  const check = () => {
+    if (!inp.isConnected || inp.dataset.ok || !inp.value) return;
+    if (Number(inp.value) === correct){
+      inp.dataset.ok = '1'; inp.readOnly = true;
+      inp.classList.remove('wrong'); inp.classList.add('right'); inp.removeAttribute('aria-invalid');
+      if (inp.parentElement.classList.contains('box')) inp.parentElement.classList.add('right');
+      advance();
+    } else {
+      inp.classList.remove('wrong'); void inp.offsetWidth; inp.classList.add('wrong');
+      inp.setAttribute('aria-invalid', 'true');
+      setStatus('Not yet. Try again.', 'wrong');
+    }
+  };
+  inp.addEventListener('input', () => {
+    inp.value = inp.value.replace(/\D/g, '').slice(0, 5);
+    inp.classList.remove('wrong'); inp.removeAttribute('aria-invalid');
+    if (inp.value.length >= len) check();
+  });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+  inp.addEventListener('blur', check);
+  return inp;
+}
+
+function outside(n, hidden, where){
+  const c = el('out ' + where + ' ' + PLACE[placeOf(n)]);
+  if (hidden){
+    const inp = numInput(n, where === 'top' ? 'Missing number on top' : 'Missing number on the side');
+    c.append(inp); pending.push(inp);
+  } else c.textContent = n;
+  return c;
+}
+
+function render(){
+  setStatus('', '');
+  document.getElementById('next').hidden = true;
+  document.getElementById('sumWrap').hidden = true;
+  document.getElementById('sum').innerHTML = '';
+  const m = document.getElementById('model');
+  m.innerHTML = ''; pending = [];
+  const colW = t => t >= 100 ? 'minmax(96px,1.6fr)' : t >= 10 ? 'minmax(88px,1.3fr)' : 'minmax(76px,1fr)';
+  const rowH = s => s >= 10 ? 'minmax(108px,auto)' : 'minmax(92px,auto)';
+  m.style.gridTemplateColumns = `auto ${P.tops.map(colW).join(' ')}`;
+  m.style.gridTemplateRows = `auto ${P.sides.map(rowH).join(' ')}`;
+  m.append(el('corner', '×'));
+  P.tops.forEach((t,j) => m.append(outside(t, P.hidTop.has(j), 'top')));
+  P.sides.forEach((s,i) => {
+    m.append(outside(s, P.hidSide.has(i), 'side'));
+    P.tops.forEach((t,j) => {
+      const b = el('box' + (i === 0 ? ' first-row' : '') + (j === 0 ? ' first-col' : ''));
+      if (P.phase === 'inside'){
+        const inp = numInput(s * t, `${t} times ${s}`);
+        b.append(inp); pending.push(inp);
+      } else b.append(el('given', String(s * t)));
+      m.append(b);
+    });
+  });
+  heading();
+  if (pending[0]) pending[0].focus({preventScroll:true});
+}
+
+function advance(){
+  const next = pending.find(x => !x.dataset.ok);
+  if (next){ setStatus('✓ Correct', 'right'); next.focus(); return; }
+  setStatus(P.phase === 'inside' ? 'All the boxes are correct. Now add them.' : 'You found the outside numbers. Now add the boxes.', 'right');
+  P.phase = 'sum';
+  heading();
+  renderSum();
+}
+
+function renderSum(){
+  const s = document.getElementById('sum');
+  s.innerHTML = '';
+  const ans = P.a * P.b, digits = String(ans), W = digits.length;
+  s.style.gridTemplateColumns = `1.6rem repeat(${W}, var(--cell)) auto`;
+  const abbr = ['O','T','H','Th'];
+
+  s.append(el());
+  for (let k = W - 1; k >= 0; k--){ const h = el('ph ' + PLACE[10 ** k], abbr[k]); h.title = NAMES[k]; s.append(h); }
+  s.append(el());
+
+  s.append(el());
+  for (let k = W - 1; k >= 0; k--){
+    if (k === 0){ s.append(el()); continue; }
+    const c = document.createElement('input');
+    c.className = 'carry'; c.inputMode = 'numeric'; c.autocomplete = 'off';
+    c.setAttribute('aria-label', `Carry into the ${NAMES[k]} column`);
+    c.addEventListener('input', () => { c.value = c.value.replace(/\D/g, '').slice(-1); });
+    s.append(c);
+  }
+  s.append(el('src', 'carry'));
+
+  const adds = [];
+  P.sides.forEach(sd => P.tops.forEach(t => adds.push([sd * t, `${t} × ${sd}`])));
+  adds.forEach(([v, lab], idx) => {
+    s.append(el('sign', idx === adds.length - 1 ? '+' : ''));
+    [...String(v).padStart(W, ' ')].forEach(ch => s.append(el('dg', ch === ' ' ? '' : ch)));
+    s.append(el('src', lab));
+  });
+
+  const rule = el('rule'); rule.style.gridColumn = `1 / span ${W + 1}`;
+  s.append(rule); s.append(el());
+
+  s.append(el());
+  const cells = [];
+  for (let i = 0; i < W; i++){
+    const c = document.createElement('input');
+    c.className = 'ans'; c.type = 'text'; c.inputMode = 'numeric'; c.autocomplete = 'off';
+    c.setAttribute('aria-label', `Answer, ${NAMES[W - 1 - i]} digit`);
+    cells.push(c); s.append(c);
+  }
+  s.append(el());
+
+  const checkAnswer = () => {
+    let ok = true;
+    cells.forEach((c,i) => {
+      c.classList.remove('right','wrong'); c.removeAttribute('aria-invalid');
+      if (c.value === digits[i]) c.classList.add('right');
+      else { void c.offsetWidth; c.classList.add('wrong'); c.setAttribute('aria-invalid','true'); ok = false; }
+    });
+    if (ok) done(cells);
+    else setStatus('Not yet. Fix the digits in the dashed boxes.', 'wrong');
+  };
+
+  cells.forEach((c,i) => {
+    c.addEventListener('focus', () => c.select());
+    c.addEventListener('input', () => {
+      const d = c.value.replace(/\D/g, '').slice(-1);
+      c.value = d;
+      c.classList.remove('right','wrong'); c.removeAttribute('aria-invalid');
+      if (cells.every(x => x.value)) { checkAnswer(); return; }
+      if (d && i > 0) cells[i - 1].focus();
+    });
+    c.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !c.value && i < W - 1){
+        e.preventDefault();
+        const r = cells[i + 1]; r.value = ''; r.classList.remove('right','wrong'); r.focus();
+      } else if (e.key === 'ArrowLeft' && i > 0){ e.preventDefault(); cells[i - 1].focus(); }
+      else if (e.key === 'ArrowRight' && i < W - 1){ e.preventDefault(); cells[i + 1].focus(); }
+    });
+  });
+
+  document.getElementById('sumWrap').hidden = false;
+  cells[W - 1].focus();
+}
+
+function done(cells){
+  P.phase = 'done';
+  cells.forEach(c => c.readOnly = true);
+  count++;
+  document.getElementById('count').textContent = count;
+  heading();
+  setStatus(`Correct! ${P.a} × ${P.b} = ${P.a * P.b}`, 'right');
+  const n = document.getElementById('next');
+  n.hidden = false; n.focus();
+}
+
+function wireSeg(id, key){
+  const btns = document.querySelectorAll(`#${id} button`);
+  btns.forEach(b => b.addEventListener('click', () => {
+    if (key === 'size') size = b.dataset.size; else mode = b.dataset.mode;
+    btns.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    newProblem();
+  }));
+}
+wireSeg('sizeSeg', 'size');
+wireSeg('modeSeg', 'mode');
+document.getElementById('next').addEventListener('click', newProblem);
+newProblem();
+</script>
+</body>
+</html>
